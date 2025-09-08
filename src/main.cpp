@@ -1,7 +1,4 @@
-#include <iostream>
 #include "pico/stdlib.h"
-
-using namespace std;
 
 #define SW_0 9
 #define SW_1 8
@@ -9,10 +6,13 @@ using namespace std;
 
 #define LED_1 22
 #define LED_2 21
-#define LED_3 22
+#define LED_3 20
 
 class GPIOPin
 {
+    private:
+        int pin_num = 0;
+
     public:
         GPIOPin(int pin, bool input = true, bool pullup = true, bool invert = false);
         GPIOPin(const GPIOPin &) = delete;
@@ -22,15 +22,24 @@ class GPIOPin
         void write(bool value);
         void operator() (bool);
         operator int();
-
-    private:
-        int gpio_pin = 0;
-        bool state = false;
 };
+
+class GPIOPinHandler
+{
+    private:
+        GPIOPin sw;
+        GPIOPin led;
+
+        absolute_time_t time_since_sw_press;
+    public:
+        GPIOPinHandler(int sw_pin, int led_pin);
+
+        void toggle_led_on_sw_press();
+};
+
 
 GPIOPin::GPIOPin(int pin, bool input, bool pullup, bool invert)
 {
-
     gpio_init(pin);
     gpio_set_dir(pin, !input);
 
@@ -45,27 +54,52 @@ GPIOPin::GPIOPin(int pin, bool input, bool pullup, bool invert)
         gpio_set_outover(pin, GPIO_OVERRIDE_INVERT);
     }
 
-    gpio_pin = pin;
+    pin_num = pin;
 }
 
-bool GPIOPin::read() { return state; }
-void GPIOPin::write(bool value)
+/*
+    GPIOPin methods
+*/
+bool GPIOPin::read() { return gpio_get(pin_num); }
+bool GPIOPin::operator()() { return read(); }
+
+void GPIOPin::write(bool value) { gpio_put(pin_num, value); }
+void GPIOPin::operator()(bool value) { write(value); }
+
+GPIOPin::operator int() { return pin_num; }
+
+/*
+    GPIOPinHandler methods
+*/
+GPIOPinHandler::GPIOPinHandler(int sw_pin, int led_pin) :
+    sw(sw_pin, true, true, true),
+    led(led_pin, false, false, false) {}
+void GPIOPinHandler::toggle_led_on_sw_press()
 {
-    gpio_put(gpio_pin, value);
-    state = value;
+    if (sw()) {
+        led(true);
+        time_since_sw_press = get_absolute_time();
+        return;
+    }
+
+    int64_t time_diff_ms = absolute_time_diff_us(time_since_sw_press, get_absolute_time()) / 1000;
+    if (time_diff_ms >= 1000) {
+        led(false);
+    }
 }
 
 int main(void)
 {
-    GPIOPin sw0(SW_0, true, true, true);
-    GPIOPin sw1(SW_1, true, true, true);
-    GPIOPin sw2(SW_2, true, true, true);
+    GPIOPinHandler sw0_led3(SW_0, LED_3);
+    GPIOPinHandler sw1_led2(SW_1, LED_2);
+    GPIOPinHandler sw2_led1(SW_2, LED_1);
 
-    GPIOPin led1(LED_1, false, false, false);
-    GPIOPin led2(LED_2, false, false, false);
-    GPIOPin led3(LED_3, false, false, false);
-
-
+    while (true) {
+        sw0_led3.toggle_led_on_sw_press();
+        sw1_led2.toggle_led_on_sw_press();
+        sw2_led1.toggle_led_on_sw_press();
+        sleep_ms(10);
+    }
 
     return 0;
 }
