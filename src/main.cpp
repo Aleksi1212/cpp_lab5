@@ -14,7 +14,12 @@ class GPIOPin
         int pin_num = 0;
 
     public:
-        GPIOPin(int pin, bool input = true, bool pullup = true, bool invert = false);
+        GPIOPin(
+            int pin,
+            bool input = true,
+            bool pullup = true,
+            bool invert = false
+        );
         GPIOPin(const GPIOPin &) = delete;
 
         bool read();
@@ -82,7 +87,10 @@ void GPIOPinHandler::toggle_led_on_sw_press()
         return;
     }
 
-    int64_t time_diff_ms = absolute_time_diff_us(time_since_sw_press, get_absolute_time()) / 1000;
+    int64_t time_diff_ms = absolute_time_diff_us(
+        time_since_sw_press,
+        get_absolute_time()
+    ) / 1000;
     if (time_diff_ms >= 1000) {
         led(false);
     }
